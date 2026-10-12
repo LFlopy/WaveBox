@@ -1,18 +1,27 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rammetto+One&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
 @import "tailwindcss";
+
+/* Шрифт логотипа. Файл положи в public/fonts/ (см. инструкцию) */
+@font-face {
+  font-family: "Ouroboros";
+  src: url("/fonts/Ouroboros.woff2") format("woff2"),
+       url("/fonts/Ouroboros.otf") format("opentype"),
+       url("/fonts/Ouroboros.ttf") format("truetype");
+  font-display: swap;
+}
 
 /* Цвета и шрифты из макета. Менять палитру нужно только здесь. */
 @theme {
-  --color-ink: #282033;     /* поля ввода */
-  --color-violet: #8b5fbf;  /* кнопка, обводки, свечение */
+  --color-ink: #282033;     /* поля ввода, панели */
+  --color-violet: #8b5fbf;  /* кнопки, обводки, свечение */
   --color-mist: #e8dfec;    /* текст и логотип */
-  --color-card: #43384f;    /* фон карточки (подобран по макету) */
-  --font-display: "Rammetto One", serif;
+  --color-card: #43384f;    /* фон карточки входа */
+  --color-lilac: #b99be3;   /* акцент для активного трека */
+  --font-display: "Ouroboros", serif;
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
-/* Фон-имитация фиолетовых волн. Если выгрузишь фон из Figma (bg.jpg в /public),
-   замени background-image на: url("/bg.jpg") center / cover no-repeat; */
+/* Запасной фон на случай, если WebGPU недоступен */
 .auth-bg {
   background-color: #08050f;
   background-image:
@@ -20,4 +29,35 @@
     radial-gradient(35% 40% at 96% 38%, rgba(139, 95, 191, 0.65), transparent 70%),
     radial-gradient(70% 28% at 25% 102%, rgba(139, 95, 191, 0.55), transparent 70%),
     radial-gradient(80% 20% at 60% 62%, rgba(139, 95, 191, 0.3), transparent 70%);
+}
+
+/* Убираем встроенный «глазик» Edge, чтобы не было двух иконок */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+/* Тёмный скроллбар с закруглениями (Chrome, Edge, Safari) */
+.scrollbar-dark::-webkit-scrollbar {
+  width: 14px;
+}
+.scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-dark::-webkit-scrollbar-thumb {
+  background-color: rgba(139, 95, 191, 0.4);
+  border-radius: 9999px;
+  /* прозрачная рамка делает полоску тоньше и даёт отступ от края */
+  border: 4px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(139, 95, 191, 0.75);
+}
+/* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 95, 191, 0.5) transparent;
+  }
 }

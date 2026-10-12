@@ -1,5 +1,4 @@
 import { useState } from "react";
-import AuthLayout from "../components/AuthLayout.jsx";
 import TextField from "../components/TextField.jsx";
 import SubmitButton from "../components/SubmitButton.jsx";
 
@@ -51,61 +50,59 @@ export default function Register({ onSubmit, onSwitch }) {
   };
 
   return (
-    <AuthLayout>
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <TextField
-          label="Username"
-          name="username"
-          autoComplete="username"
-          value={values.username}
-          onChange={handleChange}
-          error={errors.username}
-        />
-        <TextField
-          label="Email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          value={values.email}
-          onChange={handleChange}
-          error={errors.email}
-        />
-        <TextField
-          label="Password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          value={values.password}
-          onChange={handleChange}
-          error={errors.password}
-        />
-        <TextField
-          label="Confirm Password"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          value={values.confirmPassword}
-          onChange={handleChange}
-          error={errors.confirmPassword}
-        />
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <TextField
+        label="Username"
+        name="username"
+        autoComplete="username"
+        value={values.username}
+        onChange={handleChange}
+        error={errors.username}
+      />
+      <TextField
+        label="Email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        value={values.email}
+        onChange={handleChange}
+        error={errors.email}
+      />
+      <TextField
+        label="Password"
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        value={values.password}
+        onChange={handleChange}
+        error={errors.password}
+      />
+      <TextField
+        label="Confirm Password"
+        name="confirmPassword"
+        type="password"
+        autoComplete="new-password"
+        value={values.confirmPassword}
+        onChange={handleChange}
+        error={errors.confirmPassword}
+      />
 
-        {serverError && (
-          <p role="alert" className="text-center text-xs text-red-300">
-            {serverError}
-          </p>
-        )}
-
-        <div className="mt-2 px-3">
-          <SubmitButton loading={loading}>Create Account</SubmitButton>
-        </div>
-
-        <p className="text-center text-[11px] text-mist">
-          Already have an account?{" "}
-          <button type="button" onClick={onSwitch} className="font-semibold underline-offset-2 hover:underline focus-visible:underline">
-            Log in
-          </button>
+      {serverError && (
+        <p role="alert" className="text-center text-xs text-red-300">
+          {serverError}
         </p>
-      </form>
-    </AuthLayout>
+      )}
+
+      <div className="mt-2 px-3">
+        <SubmitButton loading={loading}>Create Account</SubmitButton>
+      </div>
+
+      <p className="text-center text-[11px] text-mist">
+        Already have an account?{" "}
+        <button type="button" onClick={onSwitch} className="font-semibold underline-offset-2 hover:underline focus-visible:underline">
+          Log in
+        </button>
+      </p>
+    </form>
   );
 }

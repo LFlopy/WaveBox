@@ -305,10 +305,8 @@ export default function ShaderBackground({
   }, [colors, params]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="absolute inset-0 -z-10 h-full w-full"
-    />
+    <div aria-hidden="true" className="auth-bg fixed inset-0 -z-10">
+      <canvas ref={canvasRef} className="h-full w-full" />
+    </div>
   );
 }
