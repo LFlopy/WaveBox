@@ -1,0 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rammetto+One&display=swap");
+@import "tailwindcss";
+
+/* Цвета и шрифты из макета. Менять палитру нужно только здесь. */
+@theme {
+  --color-ink: #282033;     /* поля ввода */
+  --color-violet: #8b5fbf;  /* кнопка, обводки, свечение */
+  --color-mist: #e8dfec;    /* текст и логотип */
+  --color-card: #43384f;    /* фон карточки (подобран по макету) */
+  --font-display: "Rammetto One", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* Фон-имитация фиолетовых волн. Если выгрузишь фон из Figma (bg.jpg в /public),
+   замени background-image на: url("/bg.jpg") center / cover no-repeat; */
+.auth-bg {
+  background-color: #08050f;
+  background-image:
+    radial-gradient(55% 45% at 22% 6%, rgba(139, 95, 191, 0.8), transparent 70%),
+    radial-gradient(35% 40% at 96% 38%, rgba(139, 95, 191, 0.65), transparent 70%),
+    radial-gradient(70% 28% at 25% 102%, rgba(139, 95, 191, 0.55), transparent 70%),
+    radial-gradient(80% 20% at 60% 62%, rgba(139, 95, 191, 0.3), transparent 70%);
+}
