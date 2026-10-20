@@ -4,9 +4,19 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+from django.core.validators import validate_email
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+
 
 User = get_user_model()
+
+
+@require_GET
+@ensure_csrf_cookie
+def csrf(request):
+    return JsonResponse({"message": "CSRF cookies set"})
 
 
 @require_POST
@@ -40,12 +50,17 @@ def register(request):
         return JsonResponse({"error": "User already exists"}, status=409)
 
     if User.objects.filter(email__iexact=email).exists():
-        return JsonResponse({"error": "This email is already taken"}, status=400)
+        return JsonResponse({"error": "This email is already taken"}, status=409)
 
     try:
         validate_password(password)
     except ValidationError as exc:
         return JsonResponse({"error": exc.messages}, status=400)
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({"error": "Invalid email adress"}, status=400)
 
     user = User.objects.create_user(
         username=username,
@@ -61,3 +76,57 @@ def register(request):
         },
         status=201,
     )
+
+
+@require_POST
+def login(request):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid json"}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({"error": "Expected JSON object"}, status=400)
+    username = data.get("username")
+    password = data.get("password")
+
+    if not isinstance(username, str) or not isinstance(password, str):
+        return JsonResponse({"error": "Invalid credentials"}, status=400)
+
+    user = authenticate(
+        request,
+        username=username,
+        password=password,
+    )
+
+    if user is None:
+        return JsonResponse({"error": "Invalid username or password"}, status=401)
+
+    auth_login(request, user)
+
+    return JsonResponse(
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+        }
+    )
+
+
+@require_GET
+def me(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Not authenticated"}, status=401)
+    return JsonResponse(
+        {
+            "id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email,
+        }
+    )
+
+
+@require_POST
+def logout(request):
+    auth_logout(request)
+
+    return JsonResponse({"message": "Logged out successfully"})
