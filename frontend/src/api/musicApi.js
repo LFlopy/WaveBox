@@ -12,15 +12,27 @@ const createDefaultPlaylists = () => [
 
 // Гарантируем, что системный плейлист на месте, даже если данные повреждены
 const ensureLiked = (list) =>
-  list.some((p) => p.id === LIKED_ID) ? list : [...createDefaultPlaylists(), ...list];
+  list.some((p) => p.id === LIKED_ID)
+    ? list
+    : [...createDefaultPlaylists(), ...list];
 
-const storageKey = (username) => `music-app:playlists:${username.trim().toLowerCase()}`;
+const storageKey = (username) =>
+  `music-app:playlists:${username.trim().toLowerCase()}`;
 
-// КАТАЛОГ: все треки, которые можно найти в поиске (из src/data/mockTracks.js).
-// С бэкендом: const res = await fetch("/api/tracks"); return res.json();
 export async function fetchTracks() {
-  await delay(1200);
-  return mockTracks;
+  const response = await fetch("/api/tracks");
+
+  if (!response.ok) {
+    throw new Error(`Failed to load tracks: ${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Expected JSON, got ${contentType}`);
+  }
+
+  return response.json();
 }
 
 // ПЛЕЙЛИСТЫ ПОЛЬЗОВАТЕЛЯ.
