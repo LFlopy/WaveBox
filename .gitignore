@@ -1,0 +1,24 @@
+#Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Env variables
+.env
+.env.*
+
+
+#Django
+staticfiles/
+
+
+#Node JS
+node_modules/
+dist/
+
+
+#OS
+logs
+*.log
