@@ -8,7 +8,7 @@ venv/
 # Env variables
 .env
 .env.*
-
+!.env.example
 
 #Django
 staticfiles/
@@ -18,6 +18,12 @@ staticfiles/
 node_modules/
 dist/
 
+#Docker local settings
+compose.override.yaml
+
+#Database backups
+*.dump
+*.sql
 
 #OS
 logs
