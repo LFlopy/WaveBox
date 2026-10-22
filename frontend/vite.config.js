@@ -8,20 +8,20 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/auth": {
-        target: "http://127.0.0.1:8000",
+        target: "http://auth:8000",
         changeOrigin: true,
       },
 
       "/api/tracks": {
-        target: "http://127.0.0.1:8080",
+        target: "http://api:8080",
         changeOrigin: true,
       },
       "/audio": {
-        target: "http://127.0.0.1:8080",
+        target: "http://api:8080",
         changeOrigin: true,
       },
       "/covers": {
-        target: "http://127.0.0.1:8080",
+        target: "http://api:8080",
         changeOrigin: true,
       },
     },
