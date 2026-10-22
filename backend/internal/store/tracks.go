@@ -6,19 +6,19 @@ func GetTracks() []models.Track {
 	return []models.Track{
 		{
 			ID:       1,
-			Title:    "Track one",
-			Artist:   "Artist one",
-			Duration: "3:00",
-			Cover:    "/covers/505.JPG",
-			AudioURL: "/audio/505.mp3",
+			Title:    "Show",
+			Artist:   "Ado",
+			Duration: "3:10",
+			Cover:    "/covers/ado-show.JPG",
+			AudioURL: "/audio/ado-show.mp3",
 		},
 		{
 			ID:       2,
-			Title:    "Track two",
-			Artist:   "Artist two",
-			Duration: "2:45",
-			Cover:    "/covers/101.JPG",
-			AudioURL: "/audio/101.mp3",
+			Title:    "Usseewa",
+			Artist:   "Ado",
+			Duration: "3:25",
+			Cover:    "/covers/ado-usseewa.JPG",
+			AudioURL: "/audio/ado-usseewa.mp3",
 		},
 	}
 }
