@@ -10,7 +10,9 @@ import (
 func GetTracks(ctx context.Context, db *sql.DB) ([]models.Track, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT tracks.id, tracks.title, artists.name, tracks.duration,
-		       tracks.cover_path, tracks.audio_path
+		       tracks.cover_path, tracks.audio_path, tracks.file_size,
+		       tracks.audio_format, tracks.bit_depth, tracks.sample_rate,
+		       tracks.bitrate
 		FROM tracks
 		JOIN artists ON artists.id = tracks.artist_id
 		ORDER BY tracks.id
@@ -30,6 +32,11 @@ func GetTracks(ctx context.Context, db *sql.DB) ([]models.Track, error) {
 			&track.Duration,
 			&track.Cover,
 			&track.AudioURL,
+			&track.FileSize,
+			&track.Format,
+			&track.BitDepth,
+			&track.SampleRate,
+			&track.Bitrate,
 		); err != nil {
 			return nil, err
 		}
