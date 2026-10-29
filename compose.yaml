@@ -27,6 +27,20 @@ services:
       - ./tracks:/app/tracks:ro
     environment:
       PORT: 8080
+      DATABASE_URL: postgresql://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+  migrations:
+    build: ./python-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
+    depends_on:
+      db:
+        condition: service_healthy
 
   auth:
     build: ./auth
