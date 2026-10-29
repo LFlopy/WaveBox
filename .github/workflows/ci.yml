@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: backend/go.mod
-          cahce-dependency-path: backend/go.sum
+          cache-dependency-path: backend/go.sum
 
       - name: Run tests
         run: go test ./...
