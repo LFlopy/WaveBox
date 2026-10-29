@@ -1,0 +1,8 @@
+.git
+.env
+auth/.env
+auth/.venv
+frontend/node_modules
+frontend/dist
+python-backend/.venv
+tracks

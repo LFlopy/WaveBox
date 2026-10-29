@@ -2,7 +2,7 @@
 
 WaveBox is a self-hosted music player for a library stored on your own machine. It provides browser-based playback, user authentication, track browsing and search, and browser-local liked songs and playlists.
 
-Music metadata is stored in PostgreSQL. MP3 files and cover images remain on the filesystem under `tracks/audio/` and `tracks/covers/`.
+Music metadata is stored in PostgreSQL. MP3, FLAC, and cover files remain on the filesystem under `tracks/audio/` and `tracks/covers/`. Authenticated users can upload MP3 and FLAC files from the web interface.
 
 ## Stack and services
 
@@ -22,10 +22,11 @@ Copy the example environment file:
 cp .env.example .env
 ```
 
-Set both values in `.env`:
+Configure these values in `.env`:
 
 - `POSTGRES_PASSWORD`: password used by PostgreSQL, Django, migrations, and the Go API
 - `DJANGO_SECRET_KEY`: secret key used by Django
+- `MAX_MUSIC_UPLOAD_SIZE`: optional maximum upload size in bytes; defaults to `104857600`
 
 Use development secrets only for local environments. Do not commit `.env`.
 

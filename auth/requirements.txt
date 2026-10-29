@@ -2,3 +2,5 @@ Django
 djangorestframework
 psycopg[binary]
 dotenv
+mutagen==1.47.0
+SQLAlchemy==2.0.44

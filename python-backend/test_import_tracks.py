@@ -1,24 +1,14 @@
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from mutagen import MutagenError
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
-from import_tracks import import_tracks
+from import_tracks import MissingMetadataError, import_tracks
 from models import Artist, Base, Track
-
-
-class Tags(dict):
-    def __init__(self, title, artist, pictures=None):
-        super().__init__(TIT2=title, TPE1=artist)
-        self.pictures = pictures or []
-
-    def getall(self, key):
-        return self.pictures if key == "APIC" else []
 
 
 class ImportTracksTest(unittest.TestCase):
@@ -40,13 +30,20 @@ class ImportTracksTest(unittest.TestCase):
     def test_imports_track_with_cover_and_is_idempotent(self):
         audio_file = self.audio_dir / "song.mp3"
         audio_file.write_bytes(b"mp3")
-        picture = SimpleNamespace(mime="image/jpeg", data=b"cover")
-        audio = SimpleNamespace(
-            tags=Tags("Song", "Artist", [picture]),
-            info=SimpleNamespace(length=125.4, sample_rate=44100, bitrate=192000),
-        )
+        picture = type("Picture", (), {"mime": "image/jpeg", "data": b"cover"})()
+        metadata = {
+            "title": "Song",
+            "artist_name": "Artist",
+            "duration": "2:05",
+            "pictures": [picture],
+            "file_size": 3,
+            "audio_format": "mp3",
+            "bit_depth": None,
+            "sample_rate": 44100,
+            "bitrate": 192000,
+        }
 
-        with patch("import_tracks.MutagenFile", return_value=audio):
+        with patch("import_tracks.read_metadata", return_value=metadata):
             first = import_tracks(self.session, self.audio_dir, self.covers_dir)
             second = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
@@ -68,9 +65,11 @@ class ImportTracksTest(unittest.TestCase):
 
     def test_skips_missing_metadata(self):
         (self.audio_dir / "untagged.mp3").write_bytes(b"mp3")
-        audio = SimpleNamespace(tags=Tags("", "Artist"), info=SimpleNamespace(length=60))
 
-        with patch("import_tracks.MutagenFile", return_value=audio):
+        with patch(
+            "import_tracks.read_metadata",
+            side_effect=MissingMetadataError("missing title, artist, or duration"),
+        ):
             result = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
         self.assertEqual(result, (0, 1, 0))
@@ -79,14 +78,21 @@ class ImportTracksTest(unittest.TestCase):
     def test_continues_after_damaged_file(self):
         (self.audio_dir / "broken.mp3").write_bytes(b"broken")
         (self.audio_dir / "valid.mp3").write_bytes(b"mp3")
-        valid_audio = SimpleNamespace(
-            tags=Tags("Valid", "Artist"),
-            info=SimpleNamespace(length=60),
-        )
+        metadata = {
+            "title": "Valid",
+            "artist_name": "Artist",
+            "duration": "1:00",
+            "pictures": [],
+            "file_size": 3,
+            "audio_format": "mp3",
+            "bit_depth": None,
+            "sample_rate": None,
+            "bitrate": None,
+        }
 
         with patch(
-            "import_tracks.MutagenFile",
-            side_effect=[MutagenError("broken"), valid_audio],
+            "import_tracks.read_metadata",
+            side_effect=[MutagenError("broken"), metadata],
         ):
             result = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
@@ -96,14 +102,20 @@ class ImportTracksTest(unittest.TestCase):
     def test_imports_flac_with_picture_and_properties(self):
         audio_file = self.audio_dir / "lossless.flac"
         audio_file.write_bytes(b"f" * 450000)
-        picture = SimpleNamespace(mime="image/png", data=b"picture")
-        audio = SimpleNamespace(
-            tags={"title": ["Lossless"], "artist": ["Artist"]},
-            pictures=[picture],
-            info=SimpleNamespace(length=180, bits_per_sample=24, sample_rate=96000),
-        )
+        picture = type("Picture", (), {"mime": "image/png", "data": b"picture"})()
+        metadata = {
+            "title": "Lossless",
+            "artist_name": "Artist",
+            "duration": "3:00",
+            "pictures": [picture],
+            "file_size": 450000,
+            "audio_format": "flac",
+            "bit_depth": 24,
+            "sample_rate": 96000,
+            "bitrate": None,
+        }
 
-        with patch("import_tracks.MutagenFile", return_value=audio):
+        with patch("import_tracks.read_metadata", return_value=metadata):
             first = import_tracks(self.session, self.audio_dir, self.covers_dir)
             second = import_tracks(self.session, self.audio_dir, self.covers_dir)
 

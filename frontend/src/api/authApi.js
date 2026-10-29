@@ -46,9 +46,23 @@ async function post(endpoint, payload) {
   return response;
 }
 
+async function uploadTrack(file) {
+  await ensureCsrf();
+  const formData = new FormData();
+  formData.append("file", file);
+  return request("upload", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": getCookie("csrftoken") ?? "",
+    },
+    body: formData,
+  });
+}
+
 export const authApi = {
   register: (values) => post("register", values),
   login: (values) => post("login", values),
   logout: () => post("logout", {}),
   me: () => request("me"),
+  uploadTrack,
 };

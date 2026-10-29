@@ -7,6 +7,7 @@ import HomeView from "../views/HomeView.jsx";
 import PlaylistsView from "../views/PlaylistsView.jsx";
 import SearchView from "../views/SearchView.jsx";
 import { fetchTracks, fetchPlaylists, savePlaylists, LIKED_ID } from "../api/musicApi.js";
+import { authApi } from "../api/authApi.js";
 
 const newId = () => `pl-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
@@ -18,6 +19,8 @@ export default function MainLayout({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
 
   const [currentTrack, setCurrentTrack] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -119,6 +122,21 @@ export default function MainLayout({ user, onLogout }) {
     }
   }, [index, queue]);
 
+  const handleUpload = async (file) => {
+    setUploading(true);
+    setUploadMessage("Uploading...");
+    try {
+      const result = await authApi.uploadTrack(file);
+      setCatalog(await fetchTracks());
+      setUploadMessage(result.duplicate ? "This track is already in the library." : "Track uploaded successfully.");
+      setActiveTab("search");
+    } catch (err) {
+      setUploadMessage(err.message || "Couldn't upload this track.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // Кнопки в строке трека. По умолчанию: лайк и «+».
   // opts позволяет переопределить (например, в плейлисте: убрать «+» и добавить удаление).
   const renderActions = (track, opts = {}) => (
@@ -141,7 +159,15 @@ export default function MainLayout({ user, onLogout }) {
   return (
     <>
       <div className="grid h-dvh grid-cols-1 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-3 font-sans text-mist md:grid-cols-[17rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_auto] md:gap-4 md:p-6 lg:grid-cols-[21rem_minmax(0,1fr)]">
-        <Sidebar activeTab={activeTab} onChange={setActiveTab} user={user} onLogout={onLogout} />
+        <Sidebar
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          user={user}
+          onLogout={onLogout}
+          onUpload={handleUpload}
+          uploading={uploading}
+          uploadMessage={uploadMessage}
+        />
 
         <section className="min-h-0 overflow-hidden rounded-3xl bg-ink/85 p-2 backdrop-blur-md md:p-3">
           <div className="scrollbar-dark h-full overflow-y-auto p-3 md:p-5">
