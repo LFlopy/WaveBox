@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -23,4 +23,9 @@ class Track(Base):
     duration: Mapped[str] = mapped_column(String(16))
     cover_path: Mapped[str] = mapped_column(String(1024))
     audio_path: Mapped[str] = mapped_column(String(1024), unique=True)
+    file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    audio_format: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    bit_depth: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sample_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bitrate: Mapped[int | None] = mapped_column(Integer, nullable=True)
     artist: Mapped[Artist] = relationship(back_populates="tracks")

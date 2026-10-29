@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from mutagen.mp3 import HeaderNotFoundError
+from mutagen import MutagenError
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
@@ -43,10 +43,10 @@ class ImportTracksTest(unittest.TestCase):
         picture = SimpleNamespace(mime="image/jpeg", data=b"cover")
         audio = SimpleNamespace(
             tags=Tags("Song", "Artist", [picture]),
-            info=SimpleNamespace(length=125.4),
+            info=SimpleNamespace(length=125.4, sample_rate=44100, bitrate=192000),
         )
 
-        with patch("import_tracks.MP3", return_value=audio):
+        with patch("import_tracks.MutagenFile", return_value=audio):
             first = import_tracks(self.session, self.audio_dir, self.covers_dir)
             second = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
@@ -57,6 +57,11 @@ class ImportTracksTest(unittest.TestCase):
         self.assertEqual(track.artist.name, "Artist")
         self.assertEqual(track.duration, "2:05")
         self.assertEqual(track.audio_path, "/audio/song.mp3")
+        self.assertEqual(track.file_size, 3)
+        self.assertEqual(track.audio_format, "mp3")
+        self.assertIsNone(track.bit_depth)
+        self.assertEqual(track.sample_rate, 44100)
+        self.assertEqual(track.bitrate, 192000)
         self.assertEqual((self.covers_dir / Path(track.cover_path).name).read_bytes(), b"cover")
         self.assertEqual(self.session.scalar(select(func.count(Track.id))), 1)
         self.assertEqual(self.session.scalar(select(func.count(Artist.id))), 1)
@@ -65,7 +70,7 @@ class ImportTracksTest(unittest.TestCase):
         (self.audio_dir / "untagged.mp3").write_bytes(b"mp3")
         audio = SimpleNamespace(tags=Tags("", "Artist"), info=SimpleNamespace(length=60))
 
-        with patch("import_tracks.MP3", return_value=audio):
+        with patch("import_tracks.MutagenFile", return_value=audio):
             result = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
         self.assertEqual(result, (0, 1, 0))
@@ -80,13 +85,37 @@ class ImportTracksTest(unittest.TestCase):
         )
 
         with patch(
-            "import_tracks.MP3",
-            side_effect=[HeaderNotFoundError("broken"), valid_audio],
+            "import_tracks.MutagenFile",
+            side_effect=[MutagenError("broken"), valid_audio],
         ):
             result = import_tracks(self.session, self.audio_dir, self.covers_dir)
 
         self.assertEqual(result, (1, 0, 1))
         self.assertEqual(self.session.scalar(select(func.count(Track.id))), 1)
+
+    def test_imports_flac_with_picture_and_properties(self):
+        audio_file = self.audio_dir / "lossless.flac"
+        audio_file.write_bytes(b"f" * 450000)
+        picture = SimpleNamespace(mime="image/png", data=b"picture")
+        audio = SimpleNamespace(
+            tags={"title": ["Lossless"], "artist": ["Artist"]},
+            pictures=[picture],
+            info=SimpleNamespace(length=180, bits_per_sample=24, sample_rate=96000),
+        )
+
+        with patch("import_tracks.MutagenFile", return_value=audio):
+            first = import_tracks(self.session, self.audio_dir, self.covers_dir)
+            second = import_tracks(self.session, self.audio_dir, self.covers_dir)
+
+        self.assertEqual(first, (1, 0, 0))
+        self.assertEqual(second, (0, 1, 0))
+        track = self.session.scalar(select(Track))
+        self.assertEqual(track.title, "Lossless")
+        self.assertEqual(track.audio_format, "flac")
+        self.assertEqual(track.bit_depth, 24)
+        self.assertEqual(track.sample_rate, 96000)
+        self.assertIsNone(track.bitrate)
+        self.assertEqual((self.covers_dir / Path(track.cover_path).name).read_bytes(), b"picture")
 
 
 if __name__ == "__main__":

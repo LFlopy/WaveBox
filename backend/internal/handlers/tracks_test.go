@@ -18,8 +18,13 @@ func TestGetTracks(t *testing.T) {
 	}
 	defer db.Close()
 
-	rows := sqlmock.NewRows([]string{"id", "title", "name", "duration", "cover_path", "audio_path"}).
-		AddRow(1, "Show", "Ado", "3:10", "/covers/ado-show.JPG", "/audio/ado-show.mp3")
+	rows := sqlmock.NewRows([]string{
+		"id", "title", "name", "duration", "cover_path", "audio_path",
+		"file_size", "audio_format", "bit_depth", "sample_rate", "bitrate",
+	}).AddRow(
+		1, "Show", "Ado", "3:10", "/covers/ado-show.JPG", "/audio/ado-show.mp3",
+		4556205, "mp3", nil, 44100, 192000,
+	)
 	mock.ExpectQuery("SELECT tracks.id").WillReturnRows(rows)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/tracks", nil)
@@ -37,6 +42,9 @@ func TestGetTracks(t *testing.T) {
 	}
 	if len(tracks) != 1 || tracks[0].AudioURL != "/audio/ado-show.mp3" {
 		t.Fatalf("unexpected tracks: %#v", tracks)
+	}
+	if tracks[0].Format == nil || *tracks[0].Format != "mp3" {
+		t.Fatalf("unexpected format: %#v", tracks[0].Format)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

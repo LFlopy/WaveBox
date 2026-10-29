@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
+from mutagen import File as MutagenFile
 from mutagen import MutagenError
-from mutagen.mp3 import MP3
 from sqlalchemy import create_engine, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -21,9 +21,25 @@ def format_duration(seconds):
 def cover_suffix(mime):
     return {
         "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
         "image/png": ".png",
         "image/webp": ".webp",
+        "image/gif": ".gif",
     }.get(mime.lower(), ".bin")
+
+
+def tag_value(tags, key):
+    value = tags.get(key) if tags else None
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    return str(value or "").strip()
+
+
+def pictures(audio):
+    embedded = getattr(audio, "pictures", None)
+    if embedded:
+        return embedded
+    return audio.tags.getall("APIC") if audio.tags and hasattr(audio.tags, "getall") else []
 
 
 def import_tracks(session, audio_dir, covers_dir):
@@ -32,7 +48,10 @@ def import_tracks(session, audio_dir, covers_dir):
     failed = 0
     covers_dir.mkdir(parents=True, exist_ok=True)
 
-    audio_files = sorted(path for path in audio_dir.rglob("*") if path.is_file() and path.suffix.lower() == ".mp3")
+    supported_suffixes = {".mp3", ".flac"}
+    audio_files = sorted(
+        path for path in audio_dir.rglob("*") if path.is_file() and path.suffix.lower() in supported_suffixes
+    )
     for audio_file in audio_files:
         relative_path = audio_file.relative_to(audio_dir).as_posix()
         audio_path = f"/audio/{quote(relative_path)}"
@@ -42,22 +61,29 @@ def import_tracks(session, audio_dir, covers_dir):
 
         saved_cover = None
         try:
-            audio = MP3(audio_file)
-            title = str(audio.tags.get("TIT2", "")).strip() if audio.tags else ""
-            artist_name = str(audio.tags.get("TPE1", "")).strip() if audio.tags else ""
+            audio = MutagenFile(audio_file)
+            if audio is None:
+                raise ValueError("unsupported or damaged audio file")
+            audio_format = audio_file.suffix.lower()[1:]
+            title_key, artist_key = ("TIT2", "TPE1") if audio_format == "mp3" else ("title", "artist")
+            title = tag_value(audio.tags, title_key)
+            artist_name = tag_value(audio.tags, artist_key)
             if not title or not artist_name or audio.info.length <= 0:
                 print(f"Skipped {audio_file}: missing title, artist, or duration", file=sys.stderr)
                 skipped += 1
                 continue
 
             cover_path = ""
-            pictures = audio.tags.getall("APIC") if audio.tags else []
-            if pictures:
-                picture = pictures[0]
+            embedded_pictures = pictures(audio)
+            if embedded_pictures:
+                picture = embedded_pictures[0]
                 cover_name = hashlib.sha256(audio_path.encode()).hexdigest() + cover_suffix(picture.mime)
                 saved_cover = covers_dir / cover_name
                 saved_cover.write_bytes(picture.data)
                 cover_path = f"/covers/{cover_name}"
+
+            file_size = audio_file.stat().st_size
+            bitrate = getattr(audio.info, "bitrate", None)
 
             artist = session.scalar(select(Artist).where(Artist.name == artist_name))
             if artist is None:
@@ -71,6 +97,11 @@ def import_tracks(session, audio_dir, covers_dir):
                     duration=format_duration(audio.info.length),
                     cover_path=cover_path,
                     audio_path=audio_path,
+                    file_size=file_size,
+                    audio_format=audio_format,
+                    bit_depth=getattr(audio.info, "bits_per_sample", None),
+                    sample_rate=getattr(audio.info, "sample_rate", None),
+                    bitrate=round(bitrate) if bitrate else None,
                 )
             )
             session.commit()
