@@ -42,6 +42,20 @@ services:
       db:
         condition: service_healthy
 
+  importer:
+    profiles: ["tools"]
+    build: ./python-backend
+    command: ["python", "import_tracks.py"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
+    volumes:
+      - ./tracks:/app/tracks
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
   auth:
     build: ./auth
     restart: unless-stopped
