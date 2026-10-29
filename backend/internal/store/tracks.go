@@ -1,24 +1,44 @@
 package store
 
-import "wavebox/backend/internal/models"
+import (
+	"context"
+	"database/sql"
 
-func GetTracks() []models.Track {
-	return []models.Track{
-		{
-			ID:       1,
-			Title:    "Show",
-			Artist:   "Ado",
-			Duration: "3:10",
-			Cover:    "/covers/ado-show.JPG",
-			AudioURL: "/audio/ado-show.mp3",
-		},
-		{
-			ID:       2,
-			Title:    "Usseewa",
-			Artist:   "Ado",
-			Duration: "3:25",
-			Cover:    "/covers/ado-usseewa.JPG",
-			AudioURL: "/audio/ado-usseewa.mp3",
-		},
+	"wavebox/backend/internal/models"
+)
+
+func GetTracks(ctx context.Context, db *sql.DB) ([]models.Track, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT tracks.id, tracks.title, artists.name, tracks.duration,
+		       tracks.cover_path, tracks.audio_path
+		FROM tracks
+		JOIN artists ON artists.id = tracks.artist_id
+		ORDER BY tracks.id
+	`)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+
+	tracks := make([]models.Track, 0)
+	for rows.Next() {
+		var track models.Track
+		if err := rows.Scan(
+			&track.ID,
+			&track.Title,
+			&track.Artist,
+			&track.Duration,
+			&track.Cover,
+			&track.AudioURL,
+		); err != nil {
+			return nil, err
+		}
+		tracks = append(tracks, track)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tracks, nil
 }

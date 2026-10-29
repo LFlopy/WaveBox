@@ -29,3 +29,4 @@ compose.override.yaml
 logs
 *.log
 tracks/
+Agents.md
