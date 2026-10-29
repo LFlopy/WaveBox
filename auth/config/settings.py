@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -18,6 +19,8 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+MUSIC_BACKEND_PATH = Path(os.getenv("MUSIC_BACKEND_PATH", BASE_DIR.parent / "python-backend"))
+sys.path.insert(0, str(MUSIC_BACKEND_PATH))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -93,6 +96,15 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5433"),
     }
 }
+
+MUSIC_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"postgresql+psycopg://{DATABASES['default']['USER']}:{DATABASES['default']['PASSWORD']}@"
+    f"{DATABASES['default']['HOST']}:{DATABASES['default']['PORT']}/{DATABASES['default']['NAME']}",
+)
+MUSIC_AUDIO_DIR = Path(os.getenv("MUSIC_AUDIO_DIR", BASE_DIR.parent / "tracks" / "audio"))
+MUSIC_COVERS_DIR = Path(os.getenv("MUSIC_COVERS_DIR", BASE_DIR.parent / "tracks" / "covers"))
+MAX_MUSIC_UPLOAD_SIZE = int(os.getenv("MAX_MUSIC_UPLOAD_SIZE", str(100 * 1024 * 1024)))
 
 
 # Password validation

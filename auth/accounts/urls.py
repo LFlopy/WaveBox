@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import csrf, register, login, logout, me
+from .views import csrf, register, login, logout, me, upload
 
 
 urlpatterns = [
@@ -8,4 +8,5 @@ urlpatterns = [
     path("login", login, name="login"),
     path("logout", logout, name="logout"),
     path("me", me, name="me"),
+    path("upload", upload, name="upload"),
 ]

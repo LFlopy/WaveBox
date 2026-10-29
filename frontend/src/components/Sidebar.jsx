@@ -1,5 +1,5 @@
 import Logo from "./Logo.jsx";
-import { SearchIcon, PlaylistIcon, HomeIcon, LogoutIcon } from "./icons.jsx";
+import { SearchIcon, PlaylistIcon, HomeIcon, LogoutIcon, UploadIcon } from "./icons.jsx";
 
 const TABS = [
   { id: "search", label: "search", Icon: SearchIcon },
@@ -7,7 +7,7 @@ const TABS = [
   { id: "home", label: "home", Icon: HomeIcon },
 ];
 
-export default function Sidebar({ activeTab, onChange, user, onLogout }) {
+export default function Sidebar({ activeTab, onChange, user, onLogout, onUpload, uploading, uploadMessage }) {
   return (
     <aside className="flex flex-wrap items-center gap-4 rounded-3xl bg-ink/80 p-4 backdrop-blur-md md:row-span-2 md:flex-col md:flex-nowrap md:items-stretch md:gap-0 md:p-8">
       <Logo className="order-1 text-3xl md:text-center md:text-4xl lg:text-5xl" />
@@ -37,6 +37,25 @@ export default function Sidebar({ activeTab, onChange, user, onLogout }) {
           );
         })}
       </nav>
+
+      <div className="order-2 ml-auto md:order-3 md:ml-0 md:mt-8">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-mist/10 px-4 py-3 text-sm text-mist transition hover:bg-mist/15 focus-within:outline-2 focus-within:outline-violet md:text-base">
+          <UploadIcon className="h-5 w-5" />
+          <span>{uploading ? "Uploading..." : "Upload music"}</span>
+          <input
+            type="file"
+            accept=".mp3,.flac,audio/mpeg,audio/flac"
+            disabled={uploading}
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onUpload(file);
+              event.target.value = "";
+            }}
+          />
+        </label>
+        {uploadMessage && <p className="mt-2 max-w-64 text-xs text-mist/65">{uploadMessage}</p>}
+      </div>
 
       <div className="order-2 ml-auto flex items-center gap-3 md:order-3 md:ml-0 md:mt-10">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mist text-lg font-semibold uppercase text-violet md:h-16 md:w-16 md:text-2xl">

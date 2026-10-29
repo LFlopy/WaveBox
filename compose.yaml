@@ -57,7 +57,9 @@ services:
         condition: service_completed_successfully
 
   auth:
-    build: ./auth
+    build:
+      context: .
+      dockerfile: auth/Dockerfile
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
@@ -69,9 +71,19 @@ services:
       DB_NAME: wavebox-dev
       DB_USER: wavebox
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DATABASE_URL: postgresql+psycopg://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
+      MUSIC_BACKEND_PATH: /python-backend
+      MUSIC_AUDIO_DIR: /app/tracks/audio
+      MUSIC_COVERS_DIR: /app/tracks/covers
+      MAX_MUSIC_UPLOAD_SIZE: ${MAX_MUSIC_UPLOAD_SIZE:-104857600}
+    volumes:
+      - ./tracks:/app/tracks
     depends_on:
       db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     command: >
       sh -c "python manage.py migrate &&
               python manage.py runserver 0.0.0.0:8000"
