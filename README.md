@@ -27,6 +27,7 @@ Configure these values in `.env`:
 - `POSTGRES_PASSWORD`: password used by PostgreSQL, Django, migrations, and the Go API
 - `DJANGO_SECRET_KEY`: secret key used by Django
 - `MAX_MUSIC_UPLOAD_SIZE`: optional maximum upload size in bytes; defaults to `104857600`
+- `JAMENDO_CLIENT_ID`: optional Jamendo developer client ID; without it Jamendo is returned as an external link only
 
 Use development secrets only for local environments. Do not commit `.env`.
 
@@ -60,21 +61,40 @@ Open the application at [http://127.0.0.1:5173](http://127.0.0.1:5173).
 | Django auth | `http://127.0.0.1:8000` |
 | PostgreSQL | `127.0.0.1:5433` |
 
-The frontend proxies `/api/tracks`, `/audio/`, and `/covers/` to the Go API and `/api/auth/` to Django.
+The frontend proxies `/api/tracks`, `/api/external/`, `/audio/`, and `/covers/` to the Go API and `/api/auth/` to Django.
 
 ## External music search
 
-The Go API can search Muzsky without adding results to the local library:
+The Go API can search one source with the original parameter:
 
 ```text
 GET /api/external/search?source=muzsky&q=Ado
 ```
 
-The response contains the source name and track results with `title`, `artist`, `duration`, `cover`, and `pageUrl`. The adapter uses Muzsky's same-origin suggestion endpoint and public track pages, applies request timeouts, limits response size, restricts redirects to `muzsky.net` and its subdomains, and spaces requests by 500 milliseconds. An unavailable source or an unrecognized response returns HTTP 502; an empty search returns an empty `results` array.
+Multiple sources and a result limit can be selected without changing the endpoint:
 
-Muzsky's search form submits to `/search/`, which its `robots.txt` disallows for automated access. The adapter therefore uses `/suggest.php`, which powers the site's interactive suggestions and is not disallowed for ordinary user agents, followed by permitted public track pages for duration metadata.
+```text
+GET /api/external/search?sources=muzsky,internet_archive&q=Amazing%20Grace&limit=20
+```
 
-WaveBox does not download audio from Muzsky. Although track pages expose a manual download control, the download host disallows all automated access in its `robots.txt`, and no documented public download API or programmatic-use permission was found. If explicit permission becomes available later, downloaded MP3 files can be placed under `tracks/audio/` and processed by the existing importer; FLAC availability was not confirmed.
+`source` may also be repeated. The default limit is 20 and the maximum is 50. Source requests run concurrently with separate 12-second deadlines. Successful results are returned when another source fails; failures appear in `errors`. Sources without a permitted catalog API appear in `externalLinks` instead of fabricated track results.
+
+Each track includes `title`, `artist`, `duration`, `cover`, `source`, `pageUrl`, confirmed `format` and `quality` when available, `downloadAvailable`, and `downloadMethod`. The download method is `direct`, `external`, or `none`. Results with the same normalized title and artist and a duration within three seconds are grouped, while every acquisition option remains in `variants`.
+
+Before returning results, the API compares both normalized title and artist with PostgreSQL library tracks and checks compatible durations when both are known. Matching results include `inLibrary: true` and `libraryTrackId`.
+
+| Source | Server-side search | Acquisition behavior |
+| --- | --- | --- |
+| Muzsky | Enabled | Manual external-site MP3 download only; automated download is not used |
+| Internet Archive | Enabled through the official Advanced Search API | Item page only; availability and rights must be checked per item |
+| Jamendo | Enabled only with `JAMENDO_CLIENT_ID` | Direct MP3 URL only when the API returns `audiodownload_allowed: true`; otherwise none |
+| Bandcamp | Not available through its partner/account API | External Bandcamp search link |
+| Qobuz | Not enabled without Qobuz-issued application credentials and approved access | External Qobuz store link; purchases remain on Qobuz |
+| Free Music Archive | Disabled because its public API was shut down and unapproved search proxying is forbidden | External FMA search link |
+
+Muzsky's search form submits to `/search/`, which its `robots.txt` disallows for automated access. The adapter uses `/suggest.php` and permitted public track pages instead. Its download host disallows all automated access, so WaveBox exposes only the track page.
+
+Direct downloads are not imported automatically in this stage. A permitted MP3 or FLAC can later be stored under `tracks/audio/` and passed to the existing Python importer, which remains the only owner of audio metadata extraction and database insertion.
 
 ## Common commands
 
