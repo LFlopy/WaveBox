@@ -56,10 +56,25 @@ Open the application at [http://127.0.0.1:5173](http://127.0.0.1:5173).
 | Go API | `http://127.0.0.1:8080` |
 | API health check | `http://127.0.0.1:8080/health` |
 | Track list | `http://127.0.0.1:8080/api/tracks` |
+| External search | `http://127.0.0.1:8080/api/external/search?source=muzsky&q=Ado` |
 | Django auth | `http://127.0.0.1:8000` |
 | PostgreSQL | `127.0.0.1:5433` |
 
 The frontend proxies `/api/tracks`, `/audio/`, and `/covers/` to the Go API and `/api/auth/` to Django.
+
+## External music search
+
+The Go API can search Muzsky without adding results to the local library:
+
+```text
+GET /api/external/search?source=muzsky&q=Ado
+```
+
+The response contains the source name and track results with `title`, `artist`, `duration`, `cover`, and `pageUrl`. The adapter uses Muzsky's same-origin suggestion endpoint and public track pages, applies request timeouts, limits response size, restricts redirects to `muzsky.net` and its subdomains, and spaces requests by 500 milliseconds. An unavailable source or an unrecognized response returns HTTP 502; an empty search returns an empty `results` array.
+
+Muzsky's search form submits to `/search/`, which its `robots.txt` disallows for automated access. The adapter therefore uses `/suggest.php`, which powers the site's interactive suggestions and is not disallowed for ordinary user agents, followed by permitted public track pages for duration metadata.
+
+WaveBox does not download audio from Muzsky. Although track pages expose a manual download control, the download host disallows all automated access in its `robots.txt`, and no documented public download API or programmatic-use permission was found. If explicit permission becomes available later, downloaded MP3 files can be placed under `tracks/audio/` and processed by the existing importer; FLAC availability was not confirmed.
 
 ## Common commands
 

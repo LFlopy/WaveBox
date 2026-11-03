@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"wavebox/backend/internal/handlers"
+	"wavebox/backend/internal/sources"
 )
 
 func main() {
@@ -31,9 +33,16 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	muzsky, err := sources.NewMuzsky(nil, "https://muzsky.net", 500*time.Millisecond)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux.HandleFunc("GET /health", handlers.Health)
 	mux.HandleFunc("GET /api/tracks", handlers.GetTracks(db))
+	mux.HandleFunc("GET /api/external/search", handlers.SearchExternal(map[string]sources.Searcher{
+		"muzsky": muzsky,
+	}))
 
 	audioServer := http.FileServer(http.Dir("../tracks/audio"))
 	coverServer := http.FileServer(http.Dir("../tracks/covers"))
