@@ -1,0 +1,15 @@
+[
+  {
+    "type": "artist",
+    "title": "Ado",
+    "sub": "Исполнитель",
+    "url": "{{BASE_URL}}/artist"
+  },
+  {
+    "type": "track",
+    "title": "Show",
+    "sub": "Ado",
+    "url": "{{BASE_URL}}/music/ado-show",
+    "img": "/images/ado-show.webp"
+  }
+]
