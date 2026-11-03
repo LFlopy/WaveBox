@@ -1,0 +1,28 @@
+{
+  "headers": {
+    "status": "success",
+    "code": 0,
+    "error_message": "",
+    "results_count": 2
+  },
+  "results": [
+    {
+      "name": "Amazing Grace",
+      "duration": 190,
+      "artist_name": "Example Choir",
+      "image": "https://usercontent.jamendo.com/cover.jpg",
+      "shareurl": "https://www.jamendo.com/track/1",
+      "audiodownload": "https://prod.example/download/1/mp32/",
+      "audiodownload_allowed": true
+    },
+    {
+      "name": "No Download",
+      "duration": 125,
+      "artist_name": "Example Artist",
+      "image": "https://usercontent.jamendo.com/cover-2.jpg",
+      "shareurl": "https://www.jamendo.com/track/2",
+      "audiodownload": "",
+      "audiodownload_allowed": false
+    }
+  ]
+}

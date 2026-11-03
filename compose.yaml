@@ -28,6 +28,7 @@ services:
     environment:
       PORT: 8080
       DATABASE_URL: postgresql://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID:-}
     depends_on:
       db:
         condition: service_healthy

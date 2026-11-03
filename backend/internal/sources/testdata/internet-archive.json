@@ -1,0 +1,20 @@
+{
+  "responseHeader": {"status": 0},
+  "response": {
+    "numFound": 2,
+    "docs": [
+      {
+        "identifier": "amazing-grace",
+        "title": "Amazing Grace",
+        "creator": "Example Choir",
+        "format": ["Archive BitTorrent", "144Kbps MP3", "Metadata"]
+      },
+      {
+        "identifier": "instrumental",
+        "title": "Instrumental",
+        "creator": ["First Artist", "Second Artist"],
+        "format": ["FLAC", "VBR MP3"]
+      }
+    ]
+  }
+}

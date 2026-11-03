@@ -16,6 +16,10 @@ export default defineConfig({
         target: "http://api:8080",
         changeOrigin: true,
       },
+      "/api/external": {
+        target: "http://api:8080",
+        changeOrigin: true,
+      },
       "/audio": {
         target: "http://api:8080",
         changeOrigin: true,

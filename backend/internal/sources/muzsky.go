@@ -15,25 +15,10 @@ import (
 	"time"
 )
 
-const maxResponseSize = 2 << 20
-
 var (
-	ErrUnexpectedResponse = errors.New("unexpected source response")
-	jsonLDScriptPattern   = regexp.MustCompile(`(?is)<script\b[^>]*\btype\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>`)
-	durationPattern       = regexp.MustCompile(`^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$`)
+	jsonLDScriptPattern = regexp.MustCompile(`(?is)<script\b[^>]*\btype\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>`)
+	durationPattern     = regexp.MustCompile(`^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$`)
 )
-
-type Result struct {
-	Title    string `json:"title"`
-	Artist   string `json:"artist"`
-	Duration string `json:"duration"`
-	Cover    string `json:"cover"`
-	PageURL  string `json:"pageUrl"`
-}
-
-type Searcher interface {
-	Search(context.Context, string) ([]Result, error)
-}
 
 type Muzsky struct {
 	baseURL     *url.URL
@@ -133,11 +118,15 @@ func (m *Muzsky) Search(ctx context.Context, query string) ([]Result, error) {
 		}
 
 		results = append(results, Result{
-			Title:    suggestion.Title,
-			Artist:   suggestion.Sub,
-			Duration: duration,
-			Cover:    cover,
-			PageURL:  pageURL.String(),
+			Title:             suggestion.Title,
+			Artist:            suggestion.Sub,
+			Duration:          duration,
+			Cover:             cover,
+			Source:            "muzsky",
+			PageURL:           pageURL.String(),
+			Format:            "mp3",
+			DownloadAvailable: true,
+			DownloadMethod:    DownloadExternal,
 		})
 	}
 

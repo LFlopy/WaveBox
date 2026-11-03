@@ -4,15 +4,14 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestMuzskySearch(t *testing.T) {
-	suggestions := readFixture(t, "testdata/suggestions.json")
-	track := readFixture(t, "testdata/track.html")
+	suggestions := readSourceFixture(t, "testdata/suggestions.json")
+	track := readSourceFixture(t, "testdata/track.html")
 
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +70,7 @@ func TestMuzskySearchEmpty(t *testing.T) {
 }
 
 func TestMuzskySearchChangedHTML(t *testing.T) {
-	invalidTrack := readFixture(t, "testdata/track-invalid.html")
+	invalidTrack := readSourceFixture(t, "testdata/track-invalid.html")
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/suggest.php" {
@@ -134,13 +133,4 @@ func TestMuzskySearchNetworkError(t *testing.T) {
 	if _, err := source.Search(context.Background(), "Ado"); err == nil {
 		t.Fatal("expected network error")
 	}
-}
-
-func readFixture(t *testing.T, path string) []byte {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return data
 }
