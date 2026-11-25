@@ -79,6 +79,16 @@ export const authApi = {
   login: (values) => post("login", values),
   logout: () => post("logout", {}),
   me: () => request("me"),
+  telegramLogin: (initData) => post("telegram/login", { initData }),
+  telegramAccount: () => request("telegram/account"),
+  linkTelegram: (initData) => post("telegram/account", { initData }),
+  unlinkTelegram: async () => {
+    await ensureCsrf();
+    return request("telegram/account", {
+      method: "DELETE",
+      headers: { "X-CSRFToken": getCookie("csrftoken") ?? "" },
+    });
+  },
   uploadTrack: async (file) => waitForImport(await uploadFile("upload", file, { Prefer: "respond-async" })),
   importedPlaylists: () => request("playlists/imported"),
   importedPlaylist: (id) => request(`playlists/imported/${id}`),

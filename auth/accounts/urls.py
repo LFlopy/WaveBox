@@ -1,5 +1,6 @@
 from django.urls import path
 from .playlists import imported_playlist, imported_playlists, resolve_playlist_entry, sync_imported_playlist
+from .telegram import telegram_account, telegram_login
 from .views import csrf, download_internet_archive, register, login, logout, me, music_import_status, upload
 
 
@@ -10,6 +11,8 @@ urlpatterns = [
     path("playlists/imported/<uuid:playlist_id>/resolve", resolve_playlist_entry, name="resolve-playlist-entry"),
     path("csrf", csrf, name="csrf"),
     path("register", register, name="register"),
+    path("telegram/account", telegram_account, name="telegram-account"),
+    path("telegram/login", telegram_login, name="telegram-login"),
     path("login", login, name="login"),
     path("logout", logout, name="logout"),
     path("me", me, name="me"),

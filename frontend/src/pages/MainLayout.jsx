@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TelegramAccount from "../components/TelegramAccount.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import Player from "../components/Player.jsx";
 import TrackActions from "../components/TrackActions.jsx";
@@ -11,7 +12,7 @@ import { authApi } from "../api/authApi.js";
 
 const newId = () => `pl-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
-export default function MainLayout({ user, onLogout }) {
+export default function MainLayout({ user, onLogout, telegramLaunch }) {
   const [activeTab, setActiveTab] = useState("home"); // "home" | "playlists" | "search"
 
   const [catalog, setCatalog] = useState([]); // все треки, доступные в поиске
@@ -179,7 +180,12 @@ export default function MainLayout({ user, onLogout }) {
 
         <section className="min-h-0 overflow-hidden rounded-3xl bg-ink/85 p-2 backdrop-blur-md md:p-3">
           <div className="scrollbar-dark h-full overflow-y-auto p-3 md:p-5">
-            {activeTab === "home" && <HomeView tracks={libraryTracks} listProps={listProps} {...dataProps} />}
+            {activeTab === "home" && (
+              <>
+                {telegramLaunch && <TelegramAccount launch={telegramLaunch} />}
+                <HomeView tracks={libraryTracks} listProps={listProps} {...dataProps} />
+              </>
+            )}
             {activeTab === "playlists" && (
               <PlaylistsView
                 playlists={playlists}

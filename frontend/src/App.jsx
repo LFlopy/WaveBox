@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { authApi } from "./api/authApi.js";
 import ShaderBackground from "./components/ShaderBackground.jsx";
+import { loadTelegramLaunch } from "./api/telegram.js";
+import TelegramAccount from "./components/TelegramAccount.jsx";
 import AuthLayout from "./components/AuthLayout.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
@@ -10,6 +12,13 @@ export default function App() {
   const [user, setUser] = useState(null); // null = не авторизован
   const [screen, setScreen] = useState("login"); // "login" | "register"
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [telegramLaunch, setTelegramLaunch] = useState("");
+
+  useEffect(() => {
+    let current = true;
+    loadTelegramLaunch().then((launch) => { if (current) setTelegramLaunch(launch); });
+    return () => { current = false; };
+  }, []);
 
   useEffect(() => {
     authApi
@@ -54,14 +63,20 @@ export default function App() {
           <p className="text-white">Loading...</p>
         </div>
       ) : user ? (
-        <MainLayout user={user} onLogout={handleLogout} />
+        <MainLayout user={user} onLogout={handleLogout} telegramLaunch={telegramLaunch} />
       ) : (
         <AuthLayout>
           {screen === "login" ? (
-            <Login
-              onSubmit={handleLogin}
-              onSwitch={() => setScreen("register")}
-            />
+            <>
+              {telegramLaunch && (
+                <TelegramAccount
+                  launch={telegramLaunch}
+                  signIn
+                  onLogin={(data) => setUser({ name: data.username })}
+                />
+              )}
+              <Login onSubmit={handleLogin} onSwitch={() => setScreen("register")} />
+            </>
           ) : (
             <Register
               onSubmit={handleRegister}

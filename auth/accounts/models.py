@@ -31,3 +31,13 @@ class ImportedPlaylist(models.Model):
         constraints = [
             models.UniqueConstraint(fields=("user", "source", "source_key"), name="unique_imported_playlist_source"),
         ]
+
+
+class TelegramAccount(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    telegram_id = models.PositiveBigIntegerField(unique=True)
+
+
+class TelegramLaunch(models.Model):
+    digest = models.CharField(max_length=64, primary_key=True)
+    expires_at = models.DateTimeField(db_index=True)
