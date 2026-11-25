@@ -223,3 +223,25 @@ The key grants read access to the shared catalog. Use HTTPS outside
 localhost and omit query strings from access logs that cover `/rest/`.
 Clients that require password authentication, album or artist browsing,
 playlist management, or transcoding need a broader implementation.
+
+## Telegram Mini App
+
+Set your bot's token in the server-only `TELEGRAM_BOT_TOKEN` variable in
+`.env`. Set `DJANGO_ALLOWED_HOSTS` to your public domain,
+`DJANGO_CSRF_TRUSTED_ORIGINS` to its HTTPS origin, `DJANGO_DEBUG=0`, and
+`DJANGO_SECURE_COOKIES=1` for the HTTPS deployment.
+
+Serve the built frontend over HTTPS and route `/api/auth/` to Django and
+`/api/tracks`, `/api/external/`, `/audio/`, `/covers/`, and optional
+`/rest/` to Go under the same origin. Configure the HTTPS URL as your
+bot's Mini App in BotFather. Rebuild and restart Django to apply the
+account-link migration.
+
+On the first launch sign in with your WaveBox credentials and choose
+**Link Telegram** on Home. On later launches choose **Sign in with
+Telegram**. To unlink the account, use **Unlink Telegram** on Home.
+After signing out or using an expired launch, reopen the Mini App to
+obtain fresh launch data. Browser Telegram clients may require third-party
+cookies for the embedded session.
+
+[Telegram Mini Apps documentation](https://core.telegram.org/bots/webapps)
