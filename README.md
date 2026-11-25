@@ -63,6 +63,13 @@ Open the application at [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 The frontend proxies `/api/tracks`, `/api/external/`, `/audio/`, and `/covers/` to the Go API and `/api/auth/` to Django.
 
+## Media playback
+
+The Go API serves original audio and cover files from the media directories.
+Audio supports HTTP HEAD, byte ranges for seeking, and Last-Modified
+revalidation. Paths are confined to the corresponding audio or covers
+directory. Directory listings and unsupported file extensions return 404.
+
 ## External music search
 
 The Go API can search one source with the original parameter:
