@@ -1,4 +1,6 @@
-from sqlalchemy import BigInteger, ForeignKey, Integer, String
+from datetime import datetime
+
+from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, LargeBinary, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -28,4 +30,27 @@ class Track(Base):
     bit_depth: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sample_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bitrate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), unique=True)
+    codec: Mapped[str | None] = mapped_column(String(32))
+    channels: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
     artist: Mapped[Artist] = relationship(back_populates="tracks")
+
+
+class TrackEnrichment(Base):
+    __tablename__ = "track_enrichment"
+
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"), primary_key=True)
+    recording_mbid: Mapped[str | None] = mapped_column(String(36), index=True)
+    release_mbid: Mapped[str | None] = mapped_column(String(36))
+    candidates: Mapped[list[str]] = mapped_column(JSON)
+    next_check: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class MetadataCache(Base):
+    __tablename__ = "metadata_cache"
+
+    key: Mapped[str] = mapped_column(String(96), primary_key=True)
+    status: Mapped[int] = mapped_column(Integer)
+    body: Mapped[bytes] = mapped_column(LargeBinary)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

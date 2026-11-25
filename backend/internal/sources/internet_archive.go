@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +31,73 @@ type archiveDocument struct {
 	Title      string          `json:"title"`
 	Creator    archiveCreators `json:"creator"`
 	Formats    []string        `json:"format"`
+}
+
+type ArchiveAudioFile struct {
+	Title             string `json:"title"`
+	Artist            string `json:"artist"`
+	Format            string `json:"format"`
+	Quality           string `json:"quality"`
+	Size              int64  `json:"size"`
+	FileName          string `json:"fileName"`
+	DownloadAvailable bool   `json:"downloadAvailable"`
+	UnavailableReason string `json:"unavailableReason,omitempty"`
+}
+
+type ArchiveItemFiles struct {
+	Identifier string             `json:"identifier"`
+	Title      string             `json:"title"`
+	Artist     string             `json:"artist"`
+	LicenseURL string             `json:"licenseUrl,omitempty"`
+	Rights     string             `json:"rights,omitempty"`
+	Files      []ArchiveAudioFile `json:"files"`
+}
+
+type archiveMetadataResponse struct {
+	Files    []archiveMetadataFile `json:"files"`
+	Metadata archiveItemMetadata   `json:"metadata"`
+	IsDark   archiveBool           `json:"is_dark"`
+	Error    string                `json:"error"`
+}
+
+type archiveMetadataFile struct {
+	Name    string      `json:"name"`
+	Title   string      `json:"title"`
+	Format  string      `json:"format"`
+	Size    string      `json:"size"`
+	Private archiveBool `json:"private"`
+}
+
+type archiveItemMetadata struct {
+	Identifier       string          `json:"identifier"`
+	Title            string          `json:"title"`
+	Creator          archiveCreators `json:"creator"`
+	MediaType        string          `json:"mediatype"`
+	LicenseURL       string          `json:"licenseurl"`
+	Rights           string          `json:"rights"`
+	AccessRestricted archiveBool     `json:"access-restricted-item"`
+}
+
+type archiveBool bool
+
+var archiveIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$`)
+
+func (value *archiveBool) UnmarshalJSON(data []byte) error {
+	var boolean bool
+	if err := json.Unmarshal(data, &boolean); err == nil {
+		*value = archiveBool(boolean)
+		return nil
+	}
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	boolean, err := strconv.ParseBool(text)
+	if err != nil {
+		return err
+	}
+	*value = archiveBool(boolean)
+	return nil
 }
 
 type archiveCreators []string
@@ -103,6 +173,118 @@ func (archive *InternetArchive) Search(ctx context.Context, query string) ([]Res
 		})
 	}
 	return results, nil
+}
+
+func (archive *InternetArchive) Files(ctx context.Context, identifier string) (ArchiveItemFiles, error) {
+	identifier = strings.TrimSpace(identifier)
+	if !ValidArchiveIdentifier(identifier) {
+		return ArchiveItemFiles{}, errors.New("invalid Internet Archive identifier")
+	}
+	metadataURL := archive.baseURL.ResolveReference(&url.URL{Path: "/metadata/" + identifier})
+	parameters := metadataURL.Query()
+	parameters.Set("extended_err", "1")
+	metadataURL.RawQuery = parameters.Encode()
+	body, err := getJSON(ctx, archive.client, metadataURL.String(), "Internet Archive metadata")
+	if err != nil {
+		return ArchiveItemFiles{}, err
+	}
+	if strings.TrimSpace(string(body)) == "[]" {
+		return ArchiveItemFiles{}, fmt.Errorf("%w: Internet Archive item not found", ErrUnexpectedResponse)
+	}
+	var payload archiveMetadataResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ArchiveItemFiles{}, fmt.Errorf("%w: invalid Internet Archive metadata JSON", ErrUnexpectedResponse)
+	}
+	if payload.Error != "" {
+		return ArchiveItemFiles{}, fmt.Errorf("%w: Internet Archive metadata error", ErrUnexpectedResponse)
+	}
+	if payload.Metadata.Identifier != identifier || payload.Metadata.MediaType != "audio" {
+		return ArchiveItemFiles{}, fmt.Errorf("%w: incomplete Internet Archive metadata", ErrUnexpectedResponse)
+	}
+
+	artist := strings.Join(payload.Metadata.Creator, "; ")
+	item := ArchiveItemFiles{
+		Identifier: identifier,
+		Title:      strings.TrimSpace(payload.Metadata.Title),
+		Artist:     artist,
+		LicenseURL: strings.TrimSpace(payload.Metadata.LicenseURL),
+		Rights:     strings.TrimSpace(payload.Metadata.Rights),
+		Files:      make([]ArchiveAudioFile, 0),
+	}
+	licenseAllowed := permittedArchiveLicense(item.LicenseURL)
+	itemRestricted := bool(payload.IsDark) || bool(payload.Metadata.AccessRestricted)
+	for _, file := range payload.Files {
+		format, quality := archiveAudioFileFormat(file.Name, file.Format)
+		if format == "" {
+			continue
+		}
+		size, sizeErr := strconv.ParseInt(file.Size, 10, 64)
+		available := true
+		reason := ""
+		switch {
+		case !safeArchiveFileName(file.Name):
+			available, reason = false, "unsafe file name"
+		case sizeErr != nil || size <= 0:
+			available, reason = false, "file size is unavailable"
+		case itemRestricted || bool(file.Private):
+			available, reason = false, "item or file is access-restricted"
+		case !licenseAllowed:
+			available, reason = false, "no recognized permissive license is declared"
+		}
+		if sizeErr != nil {
+			size = 0
+		}
+		title := strings.TrimSpace(file.Title)
+		if title == "" {
+			title = item.Title
+		}
+		item.Files = append(item.Files, ArchiveAudioFile{
+			Title:             title,
+			Artist:            artist,
+			Format:            format,
+			Quality:           quality,
+			Size:              size,
+			FileName:          file.Name,
+			DownloadAvailable: available,
+			UnavailableReason: reason,
+		})
+	}
+	return item, nil
+}
+
+func ValidArchiveIdentifier(identifier string) bool {
+	return archiveIdentifierPattern.MatchString(identifier)
+}
+
+func archiveAudioFileFormat(name, quality string) (string, string) {
+	extension := strings.ToLower(filepath.Ext(name))
+	lowerQuality := strings.ToLower(strings.TrimSpace(quality))
+	switch {
+	case extension == ".mp3" && strings.Contains(lowerQuality, "mp3") && !strings.Contains(lowerQuality, "m3u"):
+		return "mp3", strings.TrimSpace(quality)
+	case extension == ".flac" && strings.Contains(lowerQuality, "flac"):
+		return "flac", strings.TrimSpace(quality)
+	default:
+		return "", ""
+	}
+}
+
+func safeArchiveFileName(name string) bool {
+	name = strings.TrimSpace(name)
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, "/\\\x00")
+}
+
+func permittedArchiveLicense(raw string) bool {
+	licenseURL, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || (licenseURL.Scheme != "http" && licenseURL.Scheme != "https") {
+		return false
+	}
+	host := strings.ToLower(licenseURL.Hostname())
+	if host != "creativecommons.org" && host != "www.creativecommons.org" {
+		return false
+	}
+	path := strings.ToLower(strings.TrimSuffix(licenseURL.Path, "/"))
+	return strings.HasPrefix(path, "/licenses/") || path == "/publicdomain/zero/1.0" || path == "/publicdomain/mark/1.0"
 }
 
 func archiveQuery(query string) string {

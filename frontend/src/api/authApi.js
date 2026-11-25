@@ -31,12 +31,13 @@ async function ensureCsrf() {
   await request("csrf");
 }
 
-async function post(endpoint, payload) {
+async function post(endpoint, payload, headers = {}) {
   await ensureCsrf();
 
   const response = await request(endpoint, {
     method: "POST",
     headers: {
+      ...headers,
       "Content-Type": "application/json",
       "X-CSRFToken": getCookie("csrftoken") ?? "",
     },
@@ -46,17 +47,31 @@ async function post(endpoint, payload) {
   return response;
 }
 
-async function uploadTrack(file) {
+async function uploadFile(endpoint, file, headers = {}, fields = {}) {
   await ensureCsrf();
   const formData = new FormData();
   formData.append("file", file);
-  return request("upload", {
+  for (const [key, value] of Object.entries(fields)) formData.append(key, value);
+  return request(endpoint, {
     method: "POST",
     headers: {
+      ...headers,
       "X-CSRFToken": getCookie("csrftoken") ?? "",
     },
     body: formData,
   });
+}
+
+async function waitForImport(result) {
+  const deadline = Date.now() + 300000;
+  while (result.status === "pending") {
+    if (Date.now() >= deadline) {
+      throw new Error("Import is still running. Refresh the library later.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    result = await request(`imports/${result.importId}`);
+  }
+  return result;
 }
 
 export const authApi = {
@@ -64,5 +79,17 @@ export const authApi = {
   login: (values) => post("login", values),
   logout: () => post("logout", {}),
   me: () => request("me"),
-  uploadTrack,
+  uploadTrack: async (file) => waitForImport(await uploadFile("upload", file, { Prefer: "respond-async" })),
+  importedPlaylists: () => request("playlists/imported"),
+  importedPlaylist: (id) => request(`playlists/imported/${id}`),
+  importPlaylistFile: (file) => uploadFile("playlists/imported", file),
+  importListenBrainz: (playlistId, token) => post("playlists/imported", { playlistId, token }),
+  syncPlaylist: (id, revision, remote, token) =>
+    post(`playlists/imported/${id}/sync`, { revision, remote, token }),
+  replacePlaylistFile: (id, revision, file) =>
+    uploadFile(`playlists/imported/${id}/sync`, file, {}, { revision }),
+  resolvePlaylistEntry: (id, revision, index, trackId) =>
+    post(`playlists/imported/${id}/resolve`, { revision, index, trackId }),
+  importArchiveFile: async (identifier, fileName) =>
+    waitForImport(await post("external/internet-archive/download", { identifier, fileName }, { Prefer: "respond-async" })),
 };

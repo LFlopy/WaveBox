@@ -24,11 +24,12 @@ const (
 )
 
 type externalSearchResponse struct {
-	Source        string           `json:"source,omitempty"`
-	Sources       []string         `json:"sources"`
-	Results       []sources.Result `json:"results"`
-	Errors        []sourceError    `json:"errors,omitempty"`
-	ExternalLinks []externalLink   `json:"externalLinks,omitempty"`
+	Capabilities  map[string]sources.Capabilities `json:"capabilities"`
+	Source        string                          `json:"source,omitempty"`
+	Sources       []string                        `json:"sources"`
+	Results       []sources.Result                `json:"results"`
+	Errors        []sourceError                   `json:"errors,omitempty"`
+	ExternalLinks []externalLink                  `json:"externalLinks,omitempty"`
 }
 
 type sourceError struct {
@@ -119,6 +120,7 @@ func SearchExternal(db *sql.DB, providers map[string]sources.Provider, sourceTim
 		}
 
 		response := externalSearchResponse{
+			Capabilities:  make(map[string]sources.Capabilities, len(selected)),
 			Sources:       selected,
 			Results:       results,
 			ExternalLinks: links,
@@ -127,6 +129,13 @@ func SearchExternal(db *sql.DB, providers map[string]sources.Provider, sourceTim
 			response.Source = selected[0]
 		}
 		for _, name := range selected {
+			provider := providers[name]
+			capabilities := provider.Capabilities
+			capabilities.Search = provider.Searcher != nil
+			if capabilities.Download == "" {
+				capabilities.Download = sources.DownloadNone
+			}
+			response.Capabilities[name] = capabilities
 			if _, ok := errorsBySource[name]; ok {
 				response.Errors = append(response.Errors, sourceError{Source: name, Message: "source unavailable"})
 			}

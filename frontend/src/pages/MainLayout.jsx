@@ -24,6 +24,8 @@ export default function MainLayout({ user, onLogout }) {
 
   const [currentTrack, setCurrentTrack] = useState(null);
   const [queue, setQueue] = useState([]);
+  const [index, setIndex] = useState(-1);
+  const [playbackKey, setPlaybackKey] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const [pickerTrack, setPickerTrack] = useState(null); // трек, для которого открыто окно «Add to playlist»
@@ -93,34 +95,38 @@ export default function MainLayout({ user, onLogout }) {
     setPlaylists((prev) => prev.map((p) => (p.id === id ? { ...p, name, cover } : p)));
 
   // ----- Воспроизведение -----
-  const handleSelectTrack = (track, list = [track]) => {
+  const handleSelectTrack = (track, list = [track], position = 0) => {
+    const sameOccurrence = currentTrack?.id === track.id && (queue !== list || index === position);
     setQueue(list);
-    if (currentTrack?.id === track.id) {
-      setIsPlaying((p) => !p);
+    setIndex(position);
+    if (sameOccurrence) {
+      setIsPlaying((playing) => !playing);
     } else {
       setCurrentTrack(track);
+      setPlaybackKey((key) => key + 1);
       setIsPlaying(true);
     }
   };
 
-  const index = queue.findIndex((t) => t.id === currentTrack?.id);
   const canSkip = queue.length > 1;
 
-  const playAt = (i) => {
-    setCurrentTrack(queue[(i + queue.length) % queue.length]);
+  const playAt = useCallback((position) => {
+    const next = (position + queue.length) % queue.length;
+    setIndex(next);
+    setCurrentTrack(queue[next]);
+    setPlaybackKey((key) => key + 1);
     setIsPlaying(true);
-  };
+  }, [queue]);
   const handleNext = () => canSkip && playAt(index + 1);
   const handlePrev = () => canSkip && playAt(index - 1);
 
   const handleEnded = useCallback(() => {
     if (index >= 0 && index < queue.length - 1) {
-      setCurrentTrack(queue[index + 1]);
-      setIsPlaying(true);
+      playAt(index + 1);
     } else {
       setIsPlaying(false);
     }
-  }, [index, queue]);
+  }, [index, playAt, queue.length]);
 
   const handleUpload = async (file) => {
     setUploading(true);
@@ -151,6 +157,8 @@ export default function MainLayout({ user, onLogout }) {
   const dataProps = { loading, error, onRetry: () => setReloadKey((k) => k + 1) };
   const listProps = {
     currentId: currentTrack?.id,
+    currentQueue: queue,
+    currentIndex: index,
     isPlaying,
     onSelect: handleSelectTrack,
     renderActions,
@@ -180,6 +188,7 @@ export default function MainLayout({ user, onLogout }) {
                 onUpdate={updatePlaylist}
                 onToggleTrack={toggleTrack}
                 onRemoveTrack={removeTrack}
+                refreshCatalog={async () => setCatalog(await fetchTracks())}
                 listProps={listProps}
                 {...dataProps}
               />
@@ -189,6 +198,7 @@ export default function MainLayout({ user, onLogout }) {
         </section>
 
         <Player
+          key={playbackKey}
           track={currentTrack}
           isPlaying={isPlaying}
           canSkip={canSkip}

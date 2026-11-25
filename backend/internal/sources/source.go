@@ -65,7 +65,17 @@ type Searcher interface {
 	Search(context.Context, string) ([]Result, error)
 }
 
+type Capabilities struct {
+	Search         bool   `json:"search"`
+	Metadata       bool   `json:"metadata"`
+	Cover          bool   `json:"cover"`
+	Preview        bool   `json:"preview"`
+	Download       string `json:"download"`
+	PlaylistImport bool   `json:"playlistImport"`
+}
+
 type Provider struct {
+	Capabilities      Capabilities
 	Searcher          Searcher
 	ExternalSearchURL string
 	QueryParameter    string

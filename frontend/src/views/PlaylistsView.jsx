@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ImportedPlaylists from "../components/ImportedPlaylists.jsx";
 import Cover from "../components/Cover.jsx";
 import TrackList from "../components/TrackList.jsx";
 import PlaylistForm from "../components/PlaylistForm.jsx";
@@ -8,7 +9,7 @@ import { PlusIcon, BackIcon, PencilIcon, HeartFilledIcon } from "../components/i
 
 export default function PlaylistsView({
   playlists, tracks, loading, error, onRetry,
-  onCreate, onUpdate, onToggleTrack, onRemoveTrack, listProps,
+  onCreate, onUpdate, onToggleTrack, onRemoveTrack, listProps, refreshCatalog,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -143,6 +144,7 @@ export default function PlaylistsView({
           </li>
         ))}
       </ul>
+      <ImportedPlaylists tracks={tracks} listProps={listProps} refreshCatalog={refreshCatalog} />
     </>
   );
 }

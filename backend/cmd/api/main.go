@@ -43,8 +43,8 @@ func main() {
 		log.Fatal(err)
 	}
 	providers := map[string]sources.Provider{
-		"muzsky":           {Searcher: muzsky},
-		"internet_archive": {Searcher: internetArchive},
+		"muzsky":           {Searcher: muzsky, Capabilities: sources.Capabilities{Metadata: true, Cover: true, Download: sources.DownloadExternal}},
+		"internet_archive": {Searcher: internetArchive, Capabilities: sources.Capabilities{Metadata: true, Cover: true, Download: sources.DownloadDirect}},
 		"bandcamp": {
 			ExternalSearchURL: "https://bandcamp.com/search",
 			QueryParameter:    "q",
@@ -69,12 +69,13 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		providers["jamendo"] = sources.Provider{Searcher: jamendo}
+		providers["jamendo"] = sources.Provider{Searcher: jamendo, Capabilities: sources.Capabilities{Metadata: true, Cover: true, Download: sources.DownloadDirect}}
 	}
 
 	mux.HandleFunc("GET /health", handlers.Health)
 	mux.HandleFunc("GET /api/tracks", handlers.GetTracks(db))
 	mux.HandleFunc("GET /api/external/search", handlers.SearchExternal(db, providers, 12*time.Second))
+	mux.HandleFunc("GET /api/external/internet-archive/files", handlers.InternetArchiveFiles(internetArchive, 12*time.Second))
 
 	audioServer := http.FileServer(http.Dir("../tracks/audio"))
 	coverServer := http.FileServer(http.Dir("../tracks/covers"))

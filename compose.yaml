@@ -46,8 +46,12 @@ services:
   importer:
     profiles: ["tools"]
     build: ./python-backend
+    cpus: 1
+    mem_limit: 512m
     command: ["python", "import_tracks.py"]
     environment:
+      MUSICBRAINZ_CONTACT: ${MUSICBRAINZ_CONTACT:-}
+      MUSICBRAINZ_FETCH_COVERS: ${MUSICBRAINZ_FETCH_COVERS:-0}
       DATABASE_URL: postgresql+psycopg://wavebox:${POSTGRES_PASSWORD}@db:5432/wavebox-dev
     volumes:
       - ./tracks:/app/tracks
@@ -58,7 +62,7 @@ services:
         condition: service_completed_successfully
 
   auth:
-    build:
+    build: &auth_build
       context: .
       dockerfile: auth/Dockerfile
     restart: unless-stopped
@@ -66,7 +70,7 @@ services:
       - "127.0.0.1:8000:8000"
     env_file:
       - .env
-    environment:
+    environment: &auth_environment
       DB_HOST: db
       DB_PORT: "5432"
       DB_NAME: wavebox-dev
@@ -78,16 +82,39 @@ services:
       MUSIC_AUDIO_DIR: /app/tracks/audio
       MUSIC_COVERS_DIR: /app/tracks/covers
       MAX_MUSIC_UPLOAD_SIZE: ${MAX_MUSIC_UPLOAD_SIZE:-104857600}
-    volumes:
+      MAX_EXTERNAL_DOWNLOAD_SIZE: ${MAX_EXTERNAL_DOWNLOAD_SIZE:-104857600}
+      MUSIC_API_URL: http://api:8080
+    volumes: &auth_volumes
       - ./tracks:/app/tracks
     depends_on:
       db:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/api/auth/csrf', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
     command: >
       sh -c "python manage.py migrate &&
               python manage.py runserver 0.0.0.0:8000"
+
+  import-worker:
+    build: *auth_build
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment: *auth_environment
+    volumes: *auth_volumes
+    depends_on:
+      auth:
+        condition: service_healthy
+    command: ["python", "manage.py", "process_music_imports"]
+    cpus: 1
+    mem_limit: 512m
 
   frontend:
     build: ./frontend

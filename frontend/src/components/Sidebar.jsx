@@ -44,7 +44,7 @@ export default function Sidebar({ activeTab, onChange, user, onLogout, onUpload,
           <span>{uploading ? "Uploading..." : "Upload music"}</span>
           <input
             type="file"
-            accept=".mp3,.flac,audio/mpeg,audio/flac"
+            accept=".mp3,.flac,.ogg,.opus,.aac,.m4a,.wav"
             disabled={uploading}
             className="sr-only"
             onChange={(event) => {

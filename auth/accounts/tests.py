@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -5,11 +6,15 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from models import Base, Track
+
+from .models import MusicImport
+from .views import process_next_music_import
 
 
 class UploadTest(TestCase):
@@ -106,7 +111,7 @@ class UploadTest(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(
             "/api/auth/upload",
-            {"file": SimpleUploadedFile("song.wav", b"audio")},
+            {"file": SimpleUploadedFile("song.txt", b"audio")},
         )
         self.assertEqual(response.status_code, 415)
 
@@ -161,3 +166,87 @@ class UploadTest(TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(list(self.audio_dir.glob("*")), [])
         self.assertEqual(self.count_tracks(), 0)
+
+    def test_queued_upload_preserves_result_and_requires_ownership(self):
+        self.client.force_login(self.user)
+        with patch("accounts.views.read_metadata", return_value=self.metadata("mp3")) as read:
+            response = self.client.post(
+                "/api/auth/upload",
+                {"file": SimpleUploadedFile("queued.mp3", b"audio")},
+                HTTP_PREFER="respond-async",
+            )
+            self.assertEqual(response.status_code, 202)
+            read.assert_not_called()
+            url = f"/api/auth/imports/{response.json()['importId']}"
+            self.assertEqual(self.client.get(url).status_code, 202)
+            other = get_user_model().objects.create_user(username="other")
+            self.client.force_login(other)
+            self.assertEqual(self.client.get(url).status_code, 404)
+            self.client.force_login(self.user)
+            with self.captureOnCommitCallbacks(execute=True):
+                self.assertTrue(process_next_music_import())
+        self.assertEqual(self.client.get(url).status_code, 201)
+        self.assertEqual(list((self.audio_dir.parent / ".uploads").iterdir()), [])
+
+    def test_queued_archive_retries_transient_errors(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            "/api/auth/external/internet-archive/download",
+            {"identifier": "test-archive", "fileName": "test.mp3"},
+            content_type="application/json",
+            HTTP_PREFER="respond-async",
+        )
+        self.assertEqual(response.status_code, 202)
+        job_id = response.json()["importId"]
+        url = f"/api/auth/imports/{job_id}"
+        with patch("accounts.views.fetch_archive_item", side_effect=OSError("offline")) as fetch:
+            for attempt in range(3):
+                MusicImport.objects.filter(pk=job_id).update(available_at=timezone.now())
+                self.assertTrue(process_next_music_import())
+                self.assertFalse(process_next_music_import())
+                self.assertEqual(self.client.get(url).status_code, 500 if attempt == 2 else 202)
+            self.assertEqual(fetch.call_count, 3)
+
+    def test_archive_import_checks_eligibility_and_uses_shared_queue(self):
+        from accounts.views import process_next_music_import
+
+        self.client.force_login(self.user)
+        url = "/api/auth/external/internet-archive/download"
+        payload = {"identifier": "test-archive", "fileName": "test.mp3"}
+        item = {
+            "identifier": "test-archive",
+            "files": [{
+                "fileName": "test.mp3", "title": "Archive test", "artist": "Synthetic artist",
+                "format": "mp3", "size": 5, "downloadAvailable": False,
+            }],
+        }
+
+        def download(target, destination, max_size):
+            self.assertEqual(target, "https://archive.org/download/test-archive/test.mp3")
+            self.assertGreaterEqual(max_size, 5)
+            destination.write_bytes(b"audio")
+            return hashlib.sha256(b"audio").hexdigest(), 5
+
+        with (
+            patch("accounts.views.fetch_archive_item", return_value=item),
+            patch("accounts.views.stream_archive_file", side_effect=download) as stream,
+            patch("accounts.views.read_metadata", return_value=self.metadata("mp3")) as read,
+        ):
+            denied = self.client.post(url, payload, content_type="application/json")
+            self.assertEqual(denied.status_code, 403)
+            stream.assert_not_called()
+
+            item["files"][0]["downloadAvailable"] = True
+            queued = self.client.post(
+                url, payload, content_type="application/json", HTTP_PREFER="respond-async",
+            )
+            self.assertEqual(queued.status_code, 202)
+            stream.assert_not_called()
+            self.assertTrue(process_next_music_import())
+            status = self.client.get(f"/api/auth/imports/{queued.json()['importId']}")
+
+        self.assertEqual(status.status_code, 201)
+        self.assertEqual(status.json()["source"], "internet_archive")
+        self.assertEqual(self.count_tracks(), 1)
+        self.assertEqual(read.call_args.kwargs["fallback_title"], "Archive test")
+        self.assertEqual(list((self.audio_dir.parent / ".downloads").iterdir()), [])
