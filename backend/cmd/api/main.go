@@ -76,18 +76,8 @@ func main() {
 	mux.HandleFunc("GET /api/tracks", handlers.GetTracks(db))
 	mux.HandleFunc("GET /api/external/search", handlers.SearchExternal(db, providers, 12*time.Second))
 
-	audioServer := http.FileServer(http.Dir("../tracks/audio"))
-	coverServer := http.FileServer(http.Dir("../tracks/covers"))
-
-	mux.Handle(
-		"GET /audio/",
-		http.StripPrefix("/audio/", audioServer),
-	)
-
-	mux.Handle(
-		"GET /covers/",
-		http.StripPrefix("/covers/", coverServer),
-	)
+	mux.Handle("GET /audio/", http.StripPrefix("/audio/", handlers.MediaFiles("../tracks/audio")))
+	mux.Handle("GET /covers/", http.StripPrefix("/covers/", handlers.MediaFiles("../tracks/covers")))
 
 	log.Printf("WaveBox API запущен на порту %s", port)
 
