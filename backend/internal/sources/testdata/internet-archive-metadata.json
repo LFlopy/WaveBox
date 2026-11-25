@@ -1,0 +1,18 @@
+{
+  "files": [
+    {"name":"Licensed Song.mp3","title":"Licensed Song","format":"VBR MP3","size":"12345"},
+    {"name":"Licensed Song.flac","format":"Flac","size":"45678"},
+    {"name":"private.mp3","format":"128Kbps MP3","size":"123","private":"true"},
+    {"name":"playlist.m3u","format":"VBR MP3 M3U","size":"10"},
+    {"name":"cover.jpg","format":"JPEG","size":"20"}
+  ],
+  "metadata": {
+    "identifier":"licensed-audio",
+    "title":"Licensed Item",
+    "creator":["Example Artist"],
+    "mediatype":"audio",
+    "licenseurl":"https://creativecommons.org/licenses/by/4.0/",
+    "rights":"Creative Commons Attribution"
+  },
+  "is_dark":false
+}

@@ -29,3 +29,41 @@ jobs:
 
       - name: Build API
         run: go build ./cmd/api
+
+  python-import:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: wavebox
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: wavebox_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wavebox -d wavebox_ci"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://wavebox:test-only@127.0.0.1:5432/wavebox_ci
+      DJANGO_SECRET_KEY: ci-test-only
+      DB_NAME: wavebox_ci
+      DB_PASSWORD: test-only
+      DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: python -m pip install -r python-backend/requirements.txt -r auth/requirements.txt
+      - working-directory: python-backend
+        run: |
+          alembic upgrade 0002
+          alembic upgrade head
+          alembic check
+          python -m unittest -v
+      - working-directory: auth
+        run: |
+          python manage.py makemigrations --check --dry-run
+          python manage.py test accounts

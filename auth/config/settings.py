@@ -105,6 +105,8 @@ MUSIC_DATABASE_URL = os.getenv(
 MUSIC_AUDIO_DIR = Path(os.getenv("MUSIC_AUDIO_DIR", BASE_DIR.parent / "tracks" / "audio"))
 MUSIC_COVERS_DIR = Path(os.getenv("MUSIC_COVERS_DIR", BASE_DIR.parent / "tracks" / "covers"))
 MAX_MUSIC_UPLOAD_SIZE = int(os.getenv("MAX_MUSIC_UPLOAD_SIZE", str(100 * 1024 * 1024)))
+MAX_EXTERNAL_DOWNLOAD_SIZE = int(os.getenv("MAX_EXTERNAL_DOWNLOAD_SIZE", str(100 * 1024 * 1024)))
+MUSIC_API_URL = os.getenv("MUSIC_API_URL", "http://127.0.0.1:8080")
 
 
 # Password validation

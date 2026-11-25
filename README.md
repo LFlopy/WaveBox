@@ -2,7 +2,7 @@
 
 WaveBox is a self-hosted music player for a library stored on your own machine. It provides browser-based playback, user authentication, track browsing and search, and browser-local liked songs and playlists.
 
-Music metadata is stored in PostgreSQL. MP3, FLAC, and cover files remain on the filesystem under `tracks/audio/` and `tracks/covers/`. Authenticated users can upload MP3 and FLAC files from the web interface.
+Music metadata is stored in PostgreSQL. Audio and cover files remain on the filesystem under `tracks/audio/` and `tracks/covers/`. Authenticated users can upload MP3, FLAC, Ogg, Opus, AAC, M4A, and PCM WAV files. Playback depends on browser codec support.
 
 ## Stack and services
 
@@ -12,7 +12,7 @@ Music metadata is stored in PostgreSQL. MP3, FLAC, and cover files remain on the
 - `python-backend/`: SQLAlchemy models and Alembic database migrations
 - `db`: PostgreSQL 17 for authentication data and track metadata
 
-Docker Compose starts the frontend, API, authentication service, PostgreSQL, and a one-shot migration service. The migration service creates or updates the music-library schema before the Go API starts.
+Docker Compose starts the frontend, API, authentication service, PostgreSQL, a background import worker, and a one-shot migration service. The migration service creates or updates the music-library schema before the Go API starts.
 
 ## Configuration
 
@@ -86,7 +86,7 @@ Before returning results, the API compares both normalized title and artist with
 | Source | Server-side search | Acquisition behavior |
 | --- | --- | --- |
 | Muzsky | Enabled | Manual external-site MP3 download only; automated download is not used |
-| Internet Archive | Enabled through the official Advanced Search API | Item page only; availability and rights must be checked per item |
+| Internet Archive | Enabled through the official Advanced Search API | Authenticated imports for eligible MP3/FLAC files; availability and rights are checked per item |
 | Jamendo | Enabled only with `JAMENDO_CLIENT_ID` | Direct MP3 URL only when the API returns `audiodownload_allowed: true`; otherwise none |
 | Bandcamp | Not available through its partner/account API | External Bandcamp search link |
 | Qobuz | Not enabled without Qobuz-issued application credentials and approved access | External Qobuz store link; purchases remain on Qobuz |
@@ -94,7 +94,18 @@ Before returning results, the API compares both normalized title and artist with
 
 Muzsky's search form submits to `/search/`, which its `robots.txt` disallows for automated access. The adapter uses `/suggest.php` and permitted public track pages instead. Its download host disallows all automated access, so WaveBox exposes only the track page.
 
-Direct downloads are not imported automatically in this stage. A permitted MP3 or FLAC can later be stored under `tracks/audio/` and passed to the existing Python importer, which remains the only owner of audio metadata extraction and database insertion.
+The upload and Internet Archive import endpoints accept `Prefer: respond-async`.
+They return HTTP 202 with an `importId`, and the authenticated owner can poll
+`GET /api/auth/imports/{id}` for the result. The frontend uses this flow for uploads.
+
+Import or backfill local audio files with the shared Python importer:
+
+```bash
+docker compose --profile tools run --rm importer
+```
+
+The importer preserves original audio files and detects identical content by SHA-256.
+See [architecture](docs/ARCHITECTURE.md), [research](docs/OPEN_SOURCE_RESEARCH.md), and [roadmap](ROADMAP.md).
 
 ## Common commands
 
@@ -139,3 +150,49 @@ cd backend
 go test ./...
 go build ./cmd/api
 ```
+
+## MusicBrainz enrichment
+
+Set `MUSICBRAINZ_CONTACT` in `.env` to an email address or HTTPS contact page.
+Set `MUSICBRAINZ_FETCH_COVERS=1` if you want public front thumbnails from
+Cover Art Archive. The cover option is off by default. MusicBrainz receives
+title and artist, while WaveBox compares duration locally.
+
+Run a batch after importing or backfilling tracks:
+
+```bash
+docker compose --profile tools run --rm importer python enrich_tracks.py --limit 25
+```
+
+Run the same command periodically to pick up new tracks and retry provider
+failures. Tracks need a title, an artist, and a measured duration. WaveBox
+records ambiguous matches as candidates and leaves existing tags and media
+in place. The command also works on existing catalog entries with technical
+metadata already backfilled.
+
+## Imported playlists
+
+Open **your playlists** and use **Imported playlists** to upload a UTF-8 CSV
+or JSPF export, or enter a ListenBrainz playlist UUID. Private ListenBrainz
+playlists require their owner's token on each remote request. WaveBox does
+not retain the token.
+
+CSV supports `title`, `artist`, optional `duration_ms`, and optional
+`recording_mbid`. Each row needs a Recording MBID or both title and artist.
+JSPF uses the `playlist.track` array and recognizes MusicBrainz recording
+identifiers. Imports are limited to 500 entries and 1 MiB.
+
+```csv
+title,artist,duration_ms
+Example track,Example artist,180000
+```
+
+Use **Recheck library** after new audio is imported. Use **Replace export file**
+to refresh a file snapshot or **Sync ListenBrainz** to pull the current remote
+order. Review ambiguous matches and choose the local version for each position.
+Missing entries can be searched on Internet Archive and Jamendo. Eligible Archive
+files can be imported through WaveBox, and Jamendo offers its authorized download
+link when available. Playback follows the playlist order of matched tracks,
+including repeated tracks.
+
+The Django migration runs on startup after `docker compose up -d --build`.

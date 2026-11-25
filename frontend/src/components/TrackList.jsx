@@ -15,23 +15,23 @@ function Equalizer({ playing }) {
   );
 }
 
-// Список треков. Клик по строке вызывает onSelect(track, tracks).
+// Список треков. Клик по строке вызывает onSelect(track, tracks, index).
 // renderActions(track) рисует кнопки справа (лайк, «+», удалить).
-export default function TrackList({ tracks, currentId, isPlaying, onSelect, renderActions }) {
+export default function TrackList({ tracks, currentId, currentQueue, currentIndex, isPlaying, onSelect, renderActions }) {
   return (
     <ul className="flex flex-col gap-1">
-      {tracks.map((track) => {
-        const active = track.id === currentId;
+      {tracks.map((track, index) => {
+        const active = tracks === currentQueue ? index === currentIndex : track.id === currentId;
         return (
           <li
-            key={track.id}
+            key={`${track.id}-${index}`}
             className={`flex items-center gap-1 rounded-2xl pr-2 transition ${
               active ? "bg-violet/25" : "hover:bg-mist/5"
             }`}
           >
             <button
               type="button"
-              onClick={() => onSelect(track, tracks)}
+              onClick={() => onSelect(track, tracks, index)}
               aria-current={active ? "true" : undefined}
               className="flex min-w-0 flex-1 items-center gap-4 rounded-2xl px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-violet"
             >
