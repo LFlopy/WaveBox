@@ -77,8 +77,16 @@ func main() {
 	mux.HandleFunc("GET /api/external/search", handlers.SearchExternal(db, providers, 12*time.Second))
 	mux.HandleFunc("GET /api/external/internet-archive/files", handlers.InternetArchiveFiles(internetArchive, 12*time.Second))
 
-	mux.Handle("GET /audio/", http.StripPrefix("/audio/", handlers.MediaFiles("../tracks/audio")))
-	mux.Handle("GET /covers/", http.StripPrefix("/covers/", handlers.MediaFiles("../tracks/covers")))
+	const audioDir = "../tracks/audio"
+	const coversDir = "../tracks/covers"
+	mux.Handle("GET /audio/", http.StripPrefix("/audio/", handlers.MediaFiles(audioDir)))
+	mux.Handle("GET /covers/", http.StripPrefix("/covers/", handlers.MediaFiles(coversDir)))
+	if key := os.Getenv("OPENSUBSONIC_API_KEY"); key != "" {
+		if len(key) < 32 {
+			log.Fatal("OPENSUBSONIC_API_KEY must be at least 32 characters")
+		}
+		mux.HandleFunc("GET /rest/{endpoint}", handlers.OpenSubsonic(db, key, audioDir, coversDir))
+	}
 
 	log.Printf("WaveBox API запущен на порту %s", port)
 

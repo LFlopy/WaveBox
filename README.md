@@ -203,3 +203,23 @@ link when available. Playback follows the playlist order of matched tracks,
 including repeated tracks.
 
 The Django migration runs on startup after `docker compose up -d --build`.
+
+## OpenSubsonic preview
+
+Set `OPENSUBSONIC_API_KEY` in `.env` to a separate random key of at least
+32 characters. For example, generate one with `openssl rand -hex 32`.
+Start or recreate the API with `docker compose up -d --build api frontend`.
+Rotate the key in `.env` and recreate the API to revoke the previous key.
+An empty value disables the adapter.
+
+Connect to the WaveBox base URL. The adapter serves `/rest/` through the
+same origin as the frontend. It implements `getOpenSubsonicExtensions`,
+`ping`, `tokenInfo`, song search with `search3`, `getSong`, `getCoverArt`,
+and original audio via `stream`. Both bare names and `.view` work. Use
+the `apiKey` query parameter and the optional `f=json` response format.
+The extension discovery endpoint is public and returns JSON.
+
+The key grants read access to the shared catalog. Use HTTPS outside
+localhost and omit query strings from access logs that cover `/rest/`.
+Clients that require password authentication, album or artist browsing,
+playlist management, or transcoding need a broader implementation.
